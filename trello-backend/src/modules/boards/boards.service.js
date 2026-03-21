@@ -1,10 +1,11 @@
 import pool from '../../config/database.js';
+import crypto from 'crypto';
 import { logActivity } from '../activity/activity.service.js';
 
 export const getUserBoards = async (userId) => {
   const [rows] = await pool.execute(`
     SELECT DISTINCT
-      b.id, b.nombre, b.descripcion, b.portada, b.archivado, b.fecha_creacion,
+      b.id, b.token, b.nombre, b.descripcion, b.portada, b.archivado, b.fecha_creacion,
       u.nombre AS propietario,
       r.nombre AS mi_rol,
       (SELECT COUNT(*) FROM lists WHERE board_id = b.id) AS total_columnas,
@@ -18,13 +19,16 @@ export const getUserBoards = async (userId) => {
   return rows;
 };
 
-export const getBoardById = async (boardId) => {
+export const getBoardById = async (boardIdOrToken) => {
+  const isToken = isNaN(Number(boardIdOrToken));
+  const whereClause = isToken ? 'b.token = ?' : 'b.id = ?';
+
   const [rows] = await pool.execute(`
     SELECT b.*, u.nombre AS propietario
     FROM boards b
     JOIN users u ON b.usuario_propietario_id = u.id
-    WHERE b.id = ?
-  `, [boardId]);
+    WHERE ${whereClause}
+  `, [boardIdOrToken]);
 
   if (!rows[0]) return null;
   const board = rows[0];
@@ -36,7 +40,7 @@ export const getBoardById = async (boardId) => {
     JOIN users u ON bm.user_id = u.id
     LEFT JOIN roles r ON bm.rol_id  = r.id
     WHERE bm.board_id = ?
-  `, [boardId]);
+  `, [board.id]);
 
   // Asignar los iniciales o el color de cada miembro (frontend utilitario, o generarlos aquí)
   const colores = ['#f43f5e', '#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#0ea5e9'];
@@ -54,10 +58,12 @@ export const createBoard = async ({ nombre, descripcion, portada, userId }) => {
   try {
     await conn.beginTransaction();
 
+    const token = crypto.randomBytes(6).toString('hex');
+
     const [result] = await conn.execute(`
-      INSERT INTO boards (nombre, descripcion, portada, usuario_propietario_id)
-      VALUES (?, ?, ?, ?)
-    `, [nombre, descripcion ?? null, portada ?? null, userId]);
+      INSERT INTO boards (nombre, descripcion, portada, usuario_propietario_id, token)
+      VALUES (?, ?, ?, ?, ?)
+    `, [nombre, descripcion ?? null, portada ?? null, userId, token]);
 
     const boardId = result.insertId;
 
@@ -131,19 +137,23 @@ export const deleteBoard = async (boardId) => {
   await pool.execute('DELETE FROM boards WHERE id = ?', [boardId]);
 };
 
-export const getMemberRole = async (boardId, userId) => {
-  const [owner] = await pool.execute(
-    'SELECT id FROM boards WHERE id = ? AND usuario_propietario_id = ?',
-    [boardId, userId]
-  );
+export const getMemberRole = async (boardIdOrToken, userId) => {
+  const isToken = isNaN(Number(boardIdOrToken));
+  const whereClause = isToken ? 'token = ?' : 'id = ?';
+
+  const [owner] = await pool.execute(`
+    SELECT id FROM boards WHERE ${whereClause} AND usuario_propietario_id = ?
+  `, [boardIdOrToken, userId]);
+
   if (owner.length > 0) return 'admin';
 
   const [rows] = await pool.execute(`
     SELECT r.nombre AS rol
     FROM board_members bm
     JOIN roles r ON bm.rol_id = r.id
-    WHERE bm.board_id = ? AND bm.user_id = ?
-  `, [boardId, userId]);
+    JOIN boards b ON bm.board_id = b.id
+    WHERE (b.${isToken ? 'token' : 'id'} = ?) AND bm.user_id = ?
+  `, [boardIdOrToken, userId]);
 
   return rows[0]?.rol ?? null;
 };
