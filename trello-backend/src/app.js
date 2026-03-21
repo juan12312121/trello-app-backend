@@ -15,6 +15,14 @@ const app = express();
 
 app.use(cors());
 
+// Middleware especial para permitir conexiones desde sitios públicos (Vercel) a local (Private Network Access)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS' && req.headers['access-control-request-private-network']) {
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  }
+  next();
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
@@ -46,7 +54,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({extended: true}));
 
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: false,
+}));
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
