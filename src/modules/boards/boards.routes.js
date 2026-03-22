@@ -3,7 +3,7 @@ import { body }   from 'express-validator';
 import { protect } from '../../middlewares/auth.js';
 import { isBoardMember, isBoardAdmin } from '../../middlewares/boardAccess.js';
 import { validate } from '../../middlewares/validate.js';
-import { upload } from '../../config/multer.js';
+import { upload, uploadMemory } from '../../config/multer.js';
 import {
   getBoards,
   getBoard,
@@ -46,7 +46,7 @@ router.get('/',                              getBoards);
 router.post('/',       postBoardRules, validate, postBoard);
 
 router.get('/:boardId',         isBoardMember, getBoard);
-router.patch('/:boardId',       isBoardAdmin,  upload.single('portada'), patchBoardRules, validate, patchBoard);
+router.patch('/:boardId',       isBoardAdmin,  uploadMemory.single('portada'), patchBoardRules, validate, patchBoard);
 router.patch('/:boardId/archive', isBoardAdmin, patchArchiveBoard);
 router.delete('/:boardId',      isBoardAdmin,  deleteBoard_);
 

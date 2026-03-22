@@ -57,3 +57,14 @@ export const upload = multer({
     fileSize: 10 * 1024 * 1024,  // 10 MB máximo
   },
 });
+
+// Upload en memoria (para convertir a base64, ej: portada de tablero)
+const memoryStorage = multer.memoryStorage();
+
+export const uploadMemory = multer({
+  storage: memoryStorage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,  // 5 MB máximo para imágenes de fondo
+  },
+});

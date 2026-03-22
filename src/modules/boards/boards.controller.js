@@ -48,12 +48,12 @@ export const patchBoard = async (req, res, next) => {
   try {
     let { nombre, descripcion, portada, archivado } = req.body;
 
-    // Si se subió un archivo, lo usamos como portada
+    // Si se subió un archivo, lo convertimos a base64 para guardar en la BD
+    // (evita problemas con filesystem efímero de Render)
     if (req.file) {
-      // Usamos el host del request o uno fijo para desarrollo
-      const host = req.get('host');
-      const protocol = req.protocol;
-      portada = `url('${protocol}://${host}/uploads/${req.file.filename}')`;
+      const base64 = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype;
+      portada = `url(data:${mimeType};base64,${base64})`;
     }
 
     const board = await updateBoard(req.params.boardId, { nombre, descripcion, portada, archivado });
