@@ -1,4 +1,5 @@
 import { ApiResponse } from '../../utils/ApiResponse.js';
+import { io } from '../../app.js';
 import {
   getCommentsByCard,
   createComment,
@@ -25,6 +26,7 @@ export const postComment = async (req, res, next) => {
       texto:  req.body.texto,
     });
 
+    io.to(`board_${req.params.boardId}`).emit('board_updated');
     return ApiResponse.created(res, { comment }, 'Comentario agregado');
   } catch (error) {
     next(error);
@@ -44,6 +46,7 @@ export const patchComment = async (req, res, next) => {
       return ApiResponse.forbidden(res, 'No puedes editar este comentario');
     }
 
+    io.to(`board_${req.params.boardId}`).emit('board_updated');
     return ApiResponse.success(res, null, 'Comentario actualizado');
   } catch (error) {
     next(error);
@@ -62,6 +65,7 @@ export const deleteComment_ = async (req, res, next) => {
       return ApiResponse.forbidden(res, 'No puedes eliminar este comentario');
     }
 
+    io.to(`board_${req.params.boardId}`).emit('board_updated');
     return ApiResponse.success(res, null, 'Comentario eliminado');
   } catch (error) {
     next(error);

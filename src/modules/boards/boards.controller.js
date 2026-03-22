@@ -1,4 +1,5 @@
 import { ApiResponse } from '../../utils/ApiResponse.js';
+import { io } from '../../app.js';
 import {
   getUserBoards,
   getBoardById,
@@ -56,6 +57,7 @@ export const patchBoard = async (req, res, next) => {
     }
 
     const board = await updateBoard(req.params.boardId, { nombre, descripcion, portada, archivado });
+    io.to(`board_${req.params.boardId}`).emit('board:bg_changed', { portada: board.portada });
     return ApiResponse.success(res, board, 'Tablero actualizado');
   } catch (error) {
     next(error);
