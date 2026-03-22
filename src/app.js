@@ -10,13 +10,32 @@ import { testConnection } from './config/database.js';
 import attachmentRoutes from './modules/attachments/attachments.routes.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
-
-const app = express();
-
-app.use(cors());
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
+
+// Asegurar que la carpeta de uploads exista
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const app = express();
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+app.use(cors());
+
+// Middleware especial para permitir conexiones desde sitios públicos (Vercel) a local (Private Network Access)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS' && req.headers['access-control-request-private-network']) {
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  }
+  next();
+});
 
 import authRoutes  from './modules/auth/auth.routes.js';
 import boardRoutes from './modules/boards/boards.routes.js';
@@ -45,8 +64,6 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({extended: true}));
-
-app.use(helmet());
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, 

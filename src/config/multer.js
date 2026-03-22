@@ -17,10 +17,21 @@ const ALLOWED_TYPES = [
   'application/zip',
 ];
 
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+
+// Asegurar que la carpeta de uploads exista
+const uploadsDir = path.resolve(__dirname, '../../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Guardar en disco local (carpeta uploads/)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');  // la carpeta debe existir
+    cb(null, uploadsDir);  // la carpeta debe existir
   },
   filename: (req, file, cb) => {
     // uuid + extensión original — evita colisiones y caracteres raros
