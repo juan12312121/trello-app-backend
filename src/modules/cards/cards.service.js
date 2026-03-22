@@ -32,6 +32,10 @@ export const getCardsByList = async (listId) => {
     `, [card.id]);
     
     card.comments = commentsRows;
+
+    // Obtener los IDs de las etiquetas asignadas
+    const [tagsRows] = await pool.execute('SELECT tag_id FROM card_tags WHERE card_id = ?', [card.id]);
+    card.tags = tagsRows.map(row => row.tag_id);
   }
 
   return rows;
@@ -45,7 +49,14 @@ export const getCardById = async (cardId) => {
     LEFT JOIN lists l ON c.list_id = l.id
     WHERE c.id = ?
   `, [cardId]);
-  return rows[0] ?? null;
+  
+  const card = rows[0] ?? null;
+  if (card) {
+    const [tagsRows] = await pool.execute('SELECT tag_id FROM card_tags WHERE card_id = ?', [card.id]);
+    card.tags = tagsRows.map(row => row.tag_id);
+  }
+  
+  return card;
 };
 
 export const createCard = async ({ titulo, descripcion, prioridad, fecha_vencimiento, listId, userId }) => {
@@ -165,5 +176,11 @@ export const getCardsAssignedToMe = async (userId) => {
     WHERE c.usuario_asignado_id = ?
     ORDER BY c.fecha_vencimiento ASC, c.fecha_creacion DESC
   `, [userId]);
+
+  for (const card of rows) {
+    const [tagsRows] = await pool.execute('SELECT tag_id FROM card_tags WHERE card_id = ?', [card.id]);
+    card.tags = tagsRows.map(row => row.tag_id);
+  }
+
   return rows;
 };
