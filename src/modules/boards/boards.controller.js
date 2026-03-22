@@ -45,7 +45,7 @@ export const postBoard = async (req, res, next) => {
 // PATCH /api/v1/boards/:boardId
 export const patchBoard = async (req, res, next) => {
   try {
-    let { nombre, descripcion, portada } = req.body;
+    let { nombre, descripcion, portada, archivado } = req.body;
 
     // Si se subió un archivo, lo usamos como portada
     if (req.file) {
@@ -55,7 +55,7 @@ export const patchBoard = async (req, res, next) => {
       portada = `url('${protocol}://${host}/uploads/${req.file.filename}')`;
     }
 
-    const board = await updateBoard(req.params.boardId, { nombre, descripcion, portada });
+    const board = await updateBoard(req.params.boardId, { nombre, descripcion, portada, archivado });
     return ApiResponse.success(res, board, 'Tablero actualizado');
   } catch (error) {
     next(error);

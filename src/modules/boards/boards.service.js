@@ -96,14 +96,15 @@ export const createBoard = async ({ nombre, descripcion, portada, userId }) => {
   }
 };
 
-export const updateBoard = async (boardId, { nombre, descripcion, portada }) => {
+export const updateBoard = async (boardId, { nombre, descripcion, portada, archivado }) => {
   await pool.execute(`
     UPDATE boards SET
       nombre      = COALESCE(?, nombre),
       descripcion = COALESCE(?, descripcion),
-      portada     = COALESCE(?, portada)
+      portada     = COALESCE(?, portada),
+      archivado   = COALESCE(?, archivado)
     WHERE id = ?
-  `, [nombre ?? null, descripcion ?? null, portada ?? null, boardId]);
+  `, [nombre ?? null, descripcion ?? null, portada ?? null, archivado ?? null, boardId]);
 
   const updated = await getBoardById(boardId);
 
