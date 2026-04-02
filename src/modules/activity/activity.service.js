@@ -35,28 +35,34 @@ export const logActivity = async ({
 
 // ── Obtener actividad de un board ─────────────────────
 export const getActivityByBoard = async (boardId, { limit = 50, offset = 0 } = {}) => {
-  // Usamos .query porque algunos MariaDB/MySQL fallan con LIMIT ? en .execute
-  const [rows] = await pool.query(`
-    SELECT
-      a.id,
-      a.tipo_evento,
-      a.entidad_tipo,
-      a.entidad_id,
-      a.descripcion,
-      a.datos_anteriores,
-      a.datos_nuevos,
-      a.fecha_creacion,
-      u.id     AS usuario_id,
-      u.nombre AS usuario_nombre,
-      u.foto_perfil
-    FROM activity_log a
-    LEFT JOIN users u ON a.usuario_id = u.id
-    WHERE a.board_id = ?
-    ORDER BY a.fecha_creacion DESC
-    LIMIT ? OFFSET ?
-  `, [Number(boardId), Number(limit), Number(offset)]);
-
-  return rows;
+  // Obtenemos una conexión dedicada para poder setear sort_buffer_size a nivel sesión
+  // y evitar el error "Out of sort memory" en boards con mucha actividad
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('SET SESSION sort_buffer_size = 4194304'); // 4 MB
+    const [rows] = await conn.query(`
+      SELECT
+        a.id,
+        a.tipo_evento,
+        a.entidad_tipo,
+        a.entidad_id,
+        a.descripcion,
+        a.datos_anteriores,
+        a.datos_nuevos,
+        a.fecha_creacion,
+        u.id     AS usuario_id,
+        u.nombre AS usuario_nombre,
+        u.foto_perfil
+      FROM activity_log a
+      LEFT JOIN users u ON a.usuario_id = u.id
+      WHERE a.board_id = ?
+      ORDER BY a.fecha_creacion DESC
+      LIMIT ? OFFSET ?
+    `, [Number(boardId), Number(limit), Number(offset)]);
+    return rows;
+  } finally {
+    conn.release();
+  }
 };
 
 // ── Obtener actividad de una card ─────────────────────
@@ -81,18 +87,24 @@ export const getActivityByCard = async (cardId) => {
 };
 
 export const getActivityByUser = async (userId, { limit = 20 } = {}) => {
-  const [rows] = await pool.query(`
-    SELECT DISTINCT
-      a.id, a.tipo_evento, a.descripcion, a.fecha_creacion,
-      u.nombre AS usuario_nombre,
-      b.nombre AS board_nombre
-    FROM activity_log a
-    INNER JOIN board_members bm ON a.board_id = bm.board_id
-    INNER JOIN users u ON a.usuario_id = u.id
-    INNER JOIN boards b ON a.board_id = b.id
-    WHERE bm.user_id = ?
-    ORDER BY a.fecha_creacion DESC
-    LIMIT ?
-  `, [Number(userId), Number(limit)]);
-  return rows;
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('SET SESSION sort_buffer_size = 4194304'); // 4 MB
+    const [rows] = await conn.query(`
+      SELECT DISTINCT
+        a.id, a.tipo_evento, a.descripcion, a.fecha_creacion,
+        u.nombre AS usuario_nombre,
+        b.nombre AS board_nombre
+      FROM activity_log a
+      INNER JOIN board_members bm ON a.board_id = bm.board_id
+      INNER JOIN users u ON a.usuario_id = u.id
+      INNER JOIN boards b ON a.board_id = b.id
+      WHERE bm.user_id = ?
+      ORDER BY a.fecha_creacion DESC
+      LIMIT ?
+    `, [Number(userId), Number(limit)]);
+    return rows;
+  } finally {
+    conn.release();
+  }
 };
