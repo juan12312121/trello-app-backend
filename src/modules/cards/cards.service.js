@@ -5,7 +5,7 @@ export const getCardsByList = async (listId) => {
   const [rows] = await pool.execute(`
     SELECT
       c.id, c.titulo, c.descripcion, c.prioridad, c.fecha_vencimiento,
-      c.completada, c.posicion, c.fecha_creacion,
+      c.completada, c.posicion, c.fecha_creacion, c.portada,
       u.nombre AS usuario_asignado, u.id AS usuario_asignado_id,
       COUNT(DISTINCT ch.id) AS total_checklists,
       COUNT(DISTINCT cm.id) AS total_comentarios,
@@ -88,18 +88,26 @@ export const createCard = async ({ titulo, descripcion, prioridad, fecha_vencimi
 
 export const updateCard = async (cardId, fields) => {
   const cardAnterior = await getCardById(cardId);
-  const { titulo, descripcion, prioridad, fecha_vencimiento, completada, usuario_asignado_id } = fields;
+  // Permitimos campos como portada explícitamente y actualizamos dinámicamente
+  // para permitir setear NULOS si se requiere
+  let query = 'UPDATE cards SET ';
+  const values = [];
+  
+  const allowedFields = ['titulo', 'descripcion', 'prioridad', 'fecha_vencimiento', 'completada', 'usuario_asignado_id', 'portada'];
+  let count = 0;
+  for (const field of allowedFields) {
+    if (fields[field] !== undefined) {
+      query += `${count > 0 ? ', ' : ''}${field} = ?`;
+      values.push(fields[field]);
+      count++;
+    }
+  }
 
-  await pool.execute(`
-    UPDATE cards SET
-      titulo              = COALESCE(?, titulo),
-      descripcion         = COALESCE(?, descripcion),
-      prioridad           = COALESCE(?, prioridad),
-      fecha_vencimiento   = COALESCE(?, fecha_vencimiento),
-      completada          = COALESCE(?, completada),
-      usuario_asignado_id = COALESCE(?, usuario_asignado_id)
-    WHERE id = ?
-  `, [titulo ?? null, descripcion ?? null, prioridad ?? null, fecha_vencimiento ?? null, completada ?? null, usuario_asignado_id ?? null, cardId]);
+  if (count > 0) {
+    query += ' WHERE id = ?';
+    values.push(cardId);
+    await pool.execute(query, values);
+  }
 
   const cardActualizada = await getCardById(cardId);
 
@@ -168,7 +176,7 @@ export const getCardsAssignedToMe = async (userId) => {
   const [rows] = await pool.execute(`
     SELECT
       c.id, c.titulo, c.descripcion, c.prioridad, c.fecha_vencimiento,
-      c.completada, c.posicion, c.fecha_creacion,
+      c.completada, c.posicion, c.fecha_creacion, c.portada,
       l.nombre AS lista_nombre, b.nombre AS board_nombre, b.id AS board_id
     FROM cards c
     JOIN lists l ON c.list_id = l.id
