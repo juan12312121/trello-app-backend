@@ -8,6 +8,7 @@ export const getUserBoards = async (userId) => {
       b.id, b.token, b.nombre, b.descripcion, b.portada, b.archivado, b.fecha_creacion,
       u.nombre AS propietario,
       r.nombre AS mi_rol,
+      (SELECT COUNT(*) FROM board_members WHERE board_id = b.id) AS total_miembros,
       (SELECT COUNT(*) FROM lists WHERE board_id = b.id) AS total_columnas,
       (SELECT COUNT(*) FROM cards c JOIN lists l ON c.list_id = l.id WHERE l.board_id = b.id) AS total_tarjetas
     FROM boards b
