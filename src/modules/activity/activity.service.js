@@ -13,7 +13,7 @@ export const logActivity = async ({
   datosNuevos     = null,
 }) => {
   try {
-    await pool.execute(`
+    const [result] = await pool.execute(`
       INSERT INTO activity_log
         (board_id, usuario_id, tipo_evento, entidad_tipo, entidad_id, descripcion, datos_anteriores, datos_nuevos)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -27,6 +27,19 @@ export const logActivity = async ({
       datosAnteriores ? JSON.stringify(datosAnteriores) : null,
       datosNuevos     ? JSON.stringify(datosNuevos)     : null,
     ]);
+
+    // Emitir evento en tiempo real a los Sockets
+    const { io } = await import('../../app.js');
+    if (io) {
+      io.to(`board_${boardId}`).emit('board:new_activity', {
+        id: result.insertId,
+        boardId,
+        userId,
+        tipoEvento,
+        descripcion,
+        fecha_creacion: new Date()
+      });
+    }
   } catch (error) {
     // El log nunca debe romper el flujo principal
     console.error('[Activity Log Error]', error.message);
